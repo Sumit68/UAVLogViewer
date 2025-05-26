@@ -35,6 +35,7 @@
                         <CesiumViewer ref="cesiumViewer"/>
                     </div>
                 </div>
+                <ChatBot style="position: absolute; bottom: 20px; right: 20px; z-index: 1001;" />
             </main>
 
         </div>
@@ -42,6 +43,7 @@
 </template>
 
 <script>
+import ChatBot from '@/components/widgets/ChatBot.vue'
 import isOnline from 'is-online'
 import Plotly from '@/components/Plotly.vue'
 import CesiumViewer from '@/components/CesiumViewer.vue'
@@ -239,7 +241,8 @@ export default {
         DeviceIDViewer,
         AttitudeViewer,
         MagFitTool,
-        EkfHelperTool
+        EkfHelperTool,
+        ChatBot
     },
     computed: {
         mapOk () {

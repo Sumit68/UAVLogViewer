@@ -1,0 +1,8 @@
+fastapi
+uvicorn>=0.20.0
+hypercorn
+openai
+python-dotenv
+requests
+pymavlink
+python-multipart
