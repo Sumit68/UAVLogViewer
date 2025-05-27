@@ -1,33 +1,22 @@
-# backend/main.py
-
-from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pymavlink import mavutil
-import requests
 import json
-import os
-import uuid
+from typing import List, Optional
+from pymavlink import mavutil
+from fastapi.responses import JSONResponse
+from fastapi import FastAPI, UploadFile, File, Request
+import os, uuid
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
+from langchain_core.language_models.chat_models import SimpleChatModel
+from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, SystemMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
+from fastapi.middleware.cors import CORSMiddleware
+from langchain_core.callbacks import CallbackManagerForLLMRun
+import requests
 from dotenv import load_dotenv
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import Response
 
 load_dotenv()
 
-TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-UPLOAD_DIR = "uploaded_logs"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-
 app = FastAPI()
-
-class LargeUploadMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):
-        request._receive = request.receive  # ensure it can be read
-        return await call_next(request)
-
-app.add_middleware(LargeUploadMiddleware)
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
@@ -37,9 +26,73 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Session memory and telemetry
-sessions = {}  # session_id -> conversation history
-session_telemetry = {}  # session_id -> parsed telemetry
+UPLOAD_DIR = "uploaded_logs"
+session_telemetry = {}
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Session-specific conversation chains
+session_chains = {}
+
+class UAVInfoBot(SimpleChatModel):
+    model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    temperature: float = 0.7
+    together_api_key: Optional[str] = None
+
+    def __init__(
+        self,
+        model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        temperature: float = 0.7,
+        api_key: Optional[str] = None,
+    ):
+        super().__init__()
+        self.model = model
+        self.temperature = temperature
+        self.together_api_key = api_key or os.getenv("TOGETHER_API_KEY")
+
+    def _call(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+    ) -> str:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system" if isinstance(m, SystemMessage)
+                    else "user" if isinstance(m, HumanMessage)
+                    else "assistant",
+                    "content": m.content,
+                }
+                for m in messages
+            ],
+            "temperature": self.temperature,
+            "max_tokens": 512,
+        }
+
+        response = requests.post(
+            "https://api.together.xyz/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.together_api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+
+        response_json = response.json()
+    
+        content = response_json["choices"][0]["message"]["content"]
+        return content
+
+    @property
+    def _llm_type(self) -> str:
+        return "uav-info-bot"
+
+def get_conversation(session_id):
+    if session_id not in session_chains:
+        memory = ConversationBufferMemory()
+        session_chains[session_id] = ConversationChain(llm=UAVInfoBot(api_key=os.getenv("TOGETHER_API_KEY")), memory=memory)
+    return session_chains[session_id]
 
 @app.post("/api/upload")
 async def upload_log(file: UploadFile = File(...), session_id: str = None):
@@ -53,7 +106,7 @@ async def upload_log(file: UploadFile = File(...), session_id: str = None):
         with open(path, "wb") as f:
             f.write(contents)
 
-        print(f"File uploaded: {filename} to {path}")
+        print(f"File uploaded: {file.filename} to {path}")
         telemetry = parse_telemetry(path)
 
         if not telemetry or "error" in telemetry:
@@ -116,31 +169,16 @@ async def chat(request: Request):
 
         system_prompt += f"\n\nSample telemetry:\n{json.dumps(sample_data, default=str)[:2000]}"
 
-        history = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": message}
+        conv = get_conversation(session_id)
+        conv.memory.chat_memory.messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=message)
         ]
 
-        import requests
-        TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-        response = requests.post(
-            "https://api.together.xyz/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {TOGETHER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-                "messages": history,
-                "temperature": 0.7,
-                "max_tokens": 512
-            }
-        )
-        reply = response.json()["choices"][0]["message"]["content"]
+        reply = conv.llm._call(conv.memory.chat_memory.messages)
 
         return {"response": reply, "session_id": session_id}
     except Exception as e:
-        print("Chat error:", str(e))
         return JSONResponse(content={"response": "Internal server error.", "session_id": session_id}, status_code=500)
 
 def parse_telemetry(filepath):
@@ -172,10 +210,7 @@ def parse_telemetry(filepath):
                 parsed_data[msg_type] = []
 
             parsed_data[msg_type].append(msg_dict)
-
-        print("Parsed message types:", list(parsed_data.keys()))
         return parsed_data
 
     except Exception as e:
-        print("Error parsing telemetry:", str(e))
         return {"error": str(e)}
