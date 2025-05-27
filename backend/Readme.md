@@ -28,8 +28,8 @@ This project enables natural language interaction with UAV `.bin` telemetry logs
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/uav-telemetry-chatbot.git
-cd backend
+git clone https://github.com/Sumit68/UAVLogViewer.git
+cd UAVLogViewer/backend
 ```
 
 ### 2. Create and activate virtual environment
