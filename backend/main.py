@@ -41,19 +41,19 @@ app.add_middleware(
 sessions = {}  # session_id -> conversation history
 session_telemetry = {}  # session_id -> parsed telemetry
 
-
 @app.post("/api/upload")
 async def upload_log(file: UploadFile = File(...), session_id: str = None):
     try:
         if not session_id:
             session_id = str(uuid.uuid4())
 
-        path = os.path.join(UPLOAD_DIR, file.filename)
+        filename = f"{uuid.uuid4()}_{file.filename}"
+        path = os.path.join(UPLOAD_DIR, filename)
         contents = await file.read()
         with open(path, "wb") as f:
             f.write(contents)
 
-        print(f"File uploaded: {file.filename} to {path}")
+        print(f"File uploaded: {filename} to {path}")
         telemetry = parse_telemetry(path)
 
         if not telemetry or "error" in telemetry:
@@ -96,21 +96,26 @@ async def chat(request: Request):
 
         telemetry = session_telemetry.get(session_id, {})
 
-        # Sample a few messages to include in prompt
         sample_data = {}
-        for key in ["GPS", "BAT", "ERR", "RCIN"]:
+        for key in ["GPS", "BAT", "ERR", "RCIN", "BARO", "MSG"]:
             if key in telemetry and isinstance(telemetry[key], list):
-                sample_data[key] = telemetry[key][:2]  # take first 2 entries
+                sample_data[key] = telemetry[key][:3]  # take a few entries
 
         system_prompt = (
             "You are an intelligent UAV telemetry assistant.\n"
-            "Use the official ArduPilot log message definitions: https://ardupilot.org/plane/docs/logmessages.html\n"
-            "Interpret telemetry data and answer user queries about UAV behavior.\n"
+            "You have access to telemetry logs parsed from MAVLink .bin files.\n"
+            "Refer to ArduPilot's official documentation for MAVLink logs: https://ardupilot.org/plane/docs/logmessages.html\n"
+            "Use this data to answer flight-specific questions.\n"
+            "If the user asks about anomalies or system health, reason about:\n"
+            "- Sudden changes in GPS altitude or fix type\n"
+            "- Battery voltage drops or temperature spikes (BAT)\n"
+            "- Critical error messages (ERR with severity >= 4)\n"
+            "- RC signal loss (RCIN anomalies)\n"
+            "Avoid overexplaining when not necessary. For acknowledgments like 'ok', respond briefly and politely.\n"
         )
 
         system_prompt += f"\n\nSample telemetry:\n{json.dumps(sample_data, default=str)[:2000]}"
 
-        # Construct messages for the model
         history = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": message}
@@ -141,8 +146,7 @@ async def chat(request: Request):
 def parse_telemetry(filepath):
     try:
         mav = mavutil.mavlink_connection(filepath, dialect="ardupilotmega", robust_parsing=True)
-
-        parsed_data = {}  # Use dynamic collection based on encountered types
+        parsed_data = {}
 
         while True:
             msg = mav.recv_match(blocking=True)
@@ -150,21 +154,18 @@ def parse_telemetry(filepath):
                 break
 
             msg_type = msg.get_type()
-
-            # Skip FMT packets which only describe structure
             if msg_type == "FMT":
                 continue
 
             try:
                 msg_dict = msg.to_dict()
             except Exception:
-                continue  # Skip malformed entries
+                continue
 
-            # Convert any non-JSON-serializable items
             for key, value in msg_dict.items():
                 if isinstance(value, bytes):
                     msg_dict[key] = value.decode(errors="ignore")
-                elif hasattr(value, "tolist"):  # numpy arrays
+                elif hasattr(value, "tolist"):
                     msg_dict[key] = value.tolist()
 
             if msg_type not in parsed_data:
