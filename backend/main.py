@@ -55,6 +55,7 @@ class UAVInfoBot(SimpleChatModel):
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
     ) -> str:
+        print("Calling UAVInfoBot with messages:", messages)
         payload = {
             "model": self.model,
             "messages": [
@@ -80,7 +81,7 @@ class UAVInfoBot(SimpleChatModel):
         )
 
         response_json = response.json()
-    
+        print("UAVInfoBot response:", response_json)
         content = response_json["choices"][0]["message"]["content"]
         return content
 
@@ -145,7 +146,7 @@ async def chat(request: Request):
     try:
         data = await request.json()
         message = data.get("message")
-        session_id = data.get("session_id")
+        session_id = data.get("session_id") # What is session_id is null?
 
         telemetry = session_telemetry.get(session_id, {})
 
@@ -170,15 +171,27 @@ async def chat(request: Request):
         system_prompt += f"\n\nSample telemetry:\n{json.dumps(sample_data, default=str)[:2000]}"
 
         conv = get_conversation(session_id)
-        conv.memory.chat_memory.messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=message)
-        ]
+        # conv.memory.chat_memory.messages = [
+        #     SystemMessage(content=system_prompt),
+        #     HumanMessage(content=message)
+        # ]
+        messages = []
 
-        reply = conv.llm._call(conv.memory.chat_memory.messages)
+        if not conv.memory.chat_memory.messages:
+            messages.append(SystemMessage(content=system_prompt))
+
+        messages.extend(conv.memory.chat_memory.messages)
+
+        messages.append(HumanMessage(content=message))
+
+        reply = conv.llm._call(messages)
+
+        conv.memory.chat_memory.messages.append(HumanMessage(content=message))
+        conv.memory.chat_memory.messages.append(AIMessage(content=reply))
 
         return {"response": reply, "session_id": session_id}
     except Exception as e:
+        print("Chat error in backend:", str(e))
         return JSONResponse(content={"response": "Internal server error.", "session_id": session_id}, status_code=500)
 
 def parse_telemetry(filepath):
