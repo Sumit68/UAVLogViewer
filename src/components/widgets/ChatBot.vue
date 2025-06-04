@@ -86,12 +86,8 @@ export default {
 
     const data = await res.json();
     this.sessionId = data.session_id;
-
-    if (data.success) {
-      this.messages.push({ sender: 'bot', text: data.message });
-    } else {
-      this.messages.push({ sender: 'bot', text: `${data.message}` });
-    }
+    this.messages.push({ sender: 'bot', text: data.message });
+    
   } catch (err) {
     console.error('Upload error:', err);
     this.messages.push({ sender: 'bot', text: 'Upload or parsing failed.' });

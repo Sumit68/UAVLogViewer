@@ -81,7 +81,6 @@ class UAVInfoBot(SimpleChatModel):
         )
 
         response_json = response.json()
-        print("UAVInfoBot response:", response_json)
         content = response_json["choices"][0]["message"]["content"]
         return content
 
@@ -101,7 +100,7 @@ async def upload_log(file: UploadFile = File(...), session_id: str = None):
         if not session_id:
             session_id = str(uuid.uuid4())
 
-        filename = f"{uuid.uuid4()}_{file.filename}"
+        filename = f"{session_id}_{file.filename}"
         path = os.path.join(UPLOAD_DIR, filename)
         contents = await file.read()
         with open(path, "wb") as f:
