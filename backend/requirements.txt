@@ -1,8 +1,9 @@
-fastapi==0.115.12
+fastapi==0.116.0
 Hypercorn==0.17.3
-langchain==0.3.25
-langchain-core==0.3.62
-langchain-text-splitters==0.3.8
+langchain==0.1.16               
+langchain-core==0.1.45
+langchain-text-splitters==0.0.1
+langgraph==0.0.34
 openai==1.82.0
 pymavlink==2.4.47
 python-dotenv==1.1.0
@@ -10,3 +11,6 @@ python-multipart==0.0.20
 requests==2.32.3
 requests-toolbelt==1.0.0
 uvicorn==0.34.2
+pydantic==2.7.4
+tiktoken
+faiss-cpu
