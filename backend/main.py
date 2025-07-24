@@ -73,7 +73,7 @@ async def chat(request: Request):
             return JSONResponse(content={"response": "No telemetry data found for this session.", "session_id": session_id}, status_code=400)
 
         state = {"query": message, "parsed_telemetry": telemetry}
-        result = graph.invoke(state)
+        result = await graph.ainvoke(state) 
         if not result.get("final_response"):
             return JSONResponse(
                 content={"response": "Sorry, I could not generate an answer for your query.", "session_id": session_id},

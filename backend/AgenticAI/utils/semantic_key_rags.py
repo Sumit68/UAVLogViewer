@@ -77,6 +77,6 @@ def build_key_vectorstore():
 
 VECTORSTORE = build_key_vectorstore()
 
-def identify_relevant_keys(query: str, top_k=2):
+def identify_relevant_keys(query: str, top_k=1):
     docs = VECTORSTORE.similarity_search(query, k=top_k)
     return [doc.metadata["key"] for doc in docs]

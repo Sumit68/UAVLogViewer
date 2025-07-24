@@ -4,8 +4,9 @@ from langgraph.graph import StateGraph, END
 from AgenticAI.states.types import UAVBotState
 from AgenticAI.nodes.classifier_node import classifier_node
 from AgenticAI.nodes.factual_extractor import factual_extractor_node
-from AgenticAI.nodes.anomaly_agents import anomaly_agent_node
+from AgenticAI.nodes.anomaly_agent_node import anomaly_agent_node
 from AgenticAI.nodes.key_identifier_node import key_identifier_node
+from AgenticAI.nodes.anomaly_generator import anomaly_generator_node
 
 def route_query_type(state: dict) -> str:
     if state.get("query_type") == "factual":
@@ -21,7 +22,8 @@ def build_uav_graph():
     builder.add_node("key_identifier", key_identifier_node)
     builder.add_node("factual", lambda state: state)  # Dummy node for routing
     builder.add_node("factual_extractor", factual_extractor_node)
-    builder.add_node("anomaly", anomaly_agent_node)
+    builder.add_node("anomaly", anomaly_agent_node)  # Remove is_async argument
+    builder.add_node("anomaly_generator", anomaly_generator_node)
 
     builder.set_entry_point("classify")
     builder.add_conditional_edges("classify", route_query_type)
@@ -31,6 +33,7 @@ def build_uav_graph():
     builder.add_edge("key_identifier", "factual_extractor")
     builder.add_edge("factual_extractor", END)
 
-    builder.add_edge("anomaly", END)
+    builder.add_edge("anomaly", "anomaly_generator")
+    builder.add_edge("anomaly_generator", END)
 
     return builder.compile()

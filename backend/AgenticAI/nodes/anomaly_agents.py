@@ -1,39 +1,55 @@
-from AgenticAI.states.types import UAVBotState
-from AgenticAI.llms.openai_llms import get_core_llm
+from AgenticAI.llms.openrouter_llms import get_deepseek_llm
 from langchain.chains import LLMChain
 from langchain_core.prompts import PromptTemplate
+import asyncio
 
-anomaly_prompt = PromptTemplate.from_template("""
-You're an autonomous UAV anomaly detection agent.
+async def anomaly_judge_llm(key, data, llm):
+    print(f"[anomaly_judge_llm] Called for key: {key}, data sample: {str(data)[:300]}", flush=True)
+    prompt_template = PromptTemplate.from_template(
+        "For telemetry key '{key}', here is the associated data:\n"
+        "{data}\n\n"
+        "Based on these, are there any anomalies? If yes, describe where and why. If no, state that there are no anomalies.\n"
+    )
+    prompt = prompt_template.format(key=key, data=data)
+    print(f"[anomaly_judge_llm] Final prompt:\n{prompt}")
+    chain = LLMChain(llm=llm, prompt=prompt_template)
+    try:
+        result = await chain.arun({"key": key, "data": data})
+    except Exception as e:
+        print(f"Exception in LLM call for key {key}: {e}")
+        result = None
+    print(f"[anomaly_judge_llm] LLM result for key {key}: {result}", flush=True)
+    return result
 
-User asked: "{query}"
+async def run_anomaly_agents(session_telemetry, keys, target_key=None):
+    print(f"[run_anomaly_agents] Called with keys: {keys}, target_key: {target_key}", flush=True)
+    llm = get_deepseek_llm()
+    results = {}
 
-Here's the structured summary of telemetry fields (CTUN, GPS, ERR, BATT):
-{summary}
+    # Defensive: Ensure session_telemetry is a dict and keys is iterable
+    if not isinstance(session_telemetry, dict):
+        print("[run_anomaly_agents] session_telemetry is not a dict!", flush=True)
+        return results
+    if not keys or not isinstance(keys, (list, tuple)):
+        print("[run_anomaly_agents] keys is None or not a list/tuple!", flush=True)
+        return results
 
-Please list any anomalies you detect. Cite field names, timestamps, and reasoning. Be precise.
-""")
+    # Helper: Analyze a single key
+    async def analyze_key(key):
+        entries = session_telemetry.get(key, [])
+        print(f"[run_anomaly_agents] Analyzing key: {key}, entries count: {len(entries)}", flush=True)
+        sample_data = entries[:5] if entries else "No data available"
+        return await anomaly_judge_llm(key, sample_data, llm)
 
-llm = get_core_llm()
-anomaly_chain = LLMChain(llm=llm, prompt=anomaly_prompt)
-
-def anomaly_agent_node(state: UAVBotState) -> UAVBotState:
-    print(f"[anomaly_agent_node] Called with query: {state['query']!r}, query_type: {state.get('query_type')}", flush=True)
-    summary = "..."
-
-    if state.get("parsed_telemetry"):
-        print(f"[anomaly_agent_node] parsed_telemetry keys: {list(state['parsed_telemetry'].keys())}", flush=True)
-        gps_data = state["parsed_telemetry"].get("GPS", [])
-        if gps_data:
-            print(f"[anomaly_agent_node] GPS sample: {gps_data[:2]}", flush=True)
-        gps_hdop = [m.get("HDop") for m in gps_data if "HDop" in m]
-        err_msgs = [m.get("Message") for m in state["parsed_telemetry"].get("ERR", []) if "Message" in m]
-        summary = f"GPS.HDOP: {gps_hdop[:10]}\nERR messages: {err_msgs}"
-
-    output = anomaly_chain.run(query=state["query"], summary=summary)
-    if "findings" not in state:
-        state["findings"] = []
-    state["findings"].append(output)
-    state["final_response"] = output
-    print(f"[anomaly_agent_node] final_response: {state['final_response']!r}", flush=True)
-    return state
+    # Case 1: Query is about a specific key
+    if target_key and target_key in session_telemetry:
+        print(f"[run_anomaly_agents] Using target_key: {target_key}", flush=True)
+        results[target_key] = await analyze_key(target_key)
+    # Case 2: Analyze all keys in the provided list
+    else:
+        tasks = {key: asyncio.create_task(analyze_key(key))
+                 for key in keys[:] if key in session_telemetry}
+        for key, task in tasks.items():
+            results[key] = await task
+    print(f"[run_anomaly_agents] Results keys: {list(results.keys())}", flush=True)
+    return results

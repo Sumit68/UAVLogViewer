@@ -1,4 +1,5 @@
-from typing import Dict, Any, List, Literal, Optional, TypedDict
+from typing import Dict, Any, List, Literal, Optional
+from typing_extensions import TypedDict  # Always use typing_extensions
 
 class UAVBotState(TypedDict, total=False):
     query: str
