@@ -26,7 +26,7 @@ def get_deepseek_llm():
     return ChatOpenAI(
         model_name="tngtech/deepseek-r1t2-chimera:free",
         temperature=0.3,
-        max_tokens=512,
+        max_tokens=2048,
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         openai_api_base="https://openrouter.ai/api/v1"  # Ensures calls go through OpenRouter
     )
