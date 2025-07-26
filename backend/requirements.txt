@@ -14,3 +14,4 @@ uvicorn==0.34.2
 pydantic==2.7.4
 tiktoken
 faiss-cpu
+pymongo

@@ -5,12 +5,15 @@ from langchain.chains import LLMChain
 from AgenticAI.llms.openrouter_llms import get_mistral_llm
 
 extractor_prompt = PromptTemplate.from_template("""
-You're a telemetry analyst. The user asked: "{query}"
+You are a UAV telemetry analyst.
 
-Below is structured telemetry data from a UAV flight:
-{summary}
+The user asked: "{query}"
 
-Based on the data, answer the user's question. Include specific field names and timestamps.
+The database query returned the following result(s):
+
+{results}
+
+Explain the result to a non-technical user in clear, plain language. Focus on what the result means for the flight or drone performance. If there are important numbers, explain what they represent.
 """)
 
 llm = get_mistral_llm()
@@ -18,21 +21,17 @@ extractor_chain = LLMChain(llm=llm, prompt=extractor_prompt)
 
 def factual_extractor_node(state: dict) -> dict:
     print(f"[factual_extractor_node] Called with query: {state['query']!r}, query_type: {state.get('query_type')}", flush=True)
-    summary_text = ""
-
-    # Use only the keys that were identified as relevant
-    factual_keys = state.get("factual_keys", [])
-    parsed_telemetry = state.get("parsed_telemetry", {})
-
-    if not factual_keys:
-        # fallback: summarize all
-        factual_keys = list(parsed_telemetry.keys())
-
-    for key in factual_keys:
-        msgs = parsed_telemetry.get(key, [])
-        sample = msgs[:3] if msgs else "No data available"
-        summary_text += f"\nKey: {key}, sample data: {sample}"
-    response = extractor_chain.run(query=state["query"], summary=summary_text)
+    
+    query_results = state.get("query_results", [])
+    # Convert to JSON for context (pprint for readability or use json.dumps for stricter format)
+    from pprint import pformat
+    if not query_results:
+        results_text = "No data was found for this query."
+    else:
+        # Optionally, you can limit and clean up fields for clarity
+        sample_results = [{k: v for k, v in doc.items() if k != "_id"} for doc in query_results[:5]]
+        results_text = pformat(sample_results)
+    
+    response = extractor_chain.run(query=state["query"], results=results_text)
     state["final_response"] = response
     return state
-

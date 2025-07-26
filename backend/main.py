@@ -42,7 +42,7 @@ async def upload_log(file: UploadFile = File(...), session_id: str = None):
             f.write(contents)
 
         print(f"File uploaded: {file.filename} to {path}")
-        telemetry = parse_telemetry(path)
+        telemetry = parse_telemetry(path, session_id=session_id)
 
         if not telemetry or "error" in telemetry:
             return JSONResponse(
