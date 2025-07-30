@@ -17,6 +17,6 @@ def get_core_llm():
     return ChatOpenAI(
         model_name="gpt-4-1106-preview",
         temperature=0.3,
-        max_tokens=1024,
+        max_tokens=512,
         openai_api_key=os.getenv("OPENAI_API_KEY"),
     )

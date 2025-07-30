@@ -1,9 +1,7 @@
 from AgenticAI.nodes.anomaly_agents import run_anomaly_agents
-import asyncio
 
 async def anomaly_agent_node(state):
-    # Extract what you need from the state
-    session_telemetry = state.get("parsed_telemetry", {})
+    session_id = state.get("session_id", "")
     target_keys = state.get("target_keys")
     keys = [
     "GPS",
@@ -28,8 +26,8 @@ async def anomaly_agent_node(state):
         target_key = None
 
     # Call your anomaly agent runner
-    anomaly_results = await run_anomaly_agents(session_telemetry, keys, target_key=target_key)
-    
+    anomaly_results = await run_anomaly_agents(session_id, keys, target_key=target_key)
+
     # Add results to state for next node or response
     state["anomaly_results"] = anomaly_results
     return state

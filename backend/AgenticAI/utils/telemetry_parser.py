@@ -36,17 +36,6 @@ def parse_telemetry(filepath, session_id, store_to_mongo=True):
                 parsed_data[msg_type] = []
             parsed_data[msg_type].append(msg_dict)
 
-        # Print preview (optional, remove if you like)
-        if all_msgs:
-            print("First record:")
-            pprint(all_msgs[0])
-            print("-" * 40)
-            print("Keys in first 5 records:")
-            for i, msg in enumerate(all_msgs[:5]):
-                print(f"Message {i}: {list(msg.keys())}")
-        else:
-            print("No messages found.")
-
         # Store to MongoDB
         if store_to_mongo and all_msgs:
             client = MongoClient("mongodb://localhost:27017/")

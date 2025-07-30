@@ -15,3 +15,4 @@ pydantic==2.7.4
 tiktoken
 faiss-cpu
 pymongo
+motor>=3.3.0

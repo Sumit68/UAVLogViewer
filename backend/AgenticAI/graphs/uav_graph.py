@@ -1,5 +1,3 @@
-# AgentiAI/graphs/uav_graph.py
-
 from langgraph.graph import StateGraph, END
 from AgenticAI.states.types import UAVBotState
 from AgenticAI.nodes.classifier_node import classifier_node
@@ -22,9 +20,9 @@ def build_uav_graph():
 
     builder.add_node("classify", classifier_node)
     builder.add_node("key_identifier", key_identifier_node)
-    builder.add_node("factual", lambda state: state)  # Dummy node for routing
+    builder.add_node("factual", lambda state: state) 
     builder.add_node("factual_extractor", factual_extractor_node)
-    builder.add_node("anomaly", anomaly_agent_node)  # Remove is_async argument
+    builder.add_node("anomaly", anomaly_agent_node)
     builder.add_node("anomaly_generator", anomaly_generator_node)
     builder.add_node("llm_query_generator", llm_query_generator_node)
     builder.add_node("query_executor", query_executor_node)

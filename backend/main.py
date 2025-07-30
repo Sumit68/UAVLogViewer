@@ -41,7 +41,6 @@ async def upload_log(file: UploadFile = File(...), session_id: str = None):
         with open(path, "wb") as f:
             f.write(contents)
 
-        print(f"File uploaded: {file.filename} to {path}")
         telemetry = parse_telemetry(path, session_id=session_id)
 
         if not telemetry or "error" in telemetry:
@@ -72,7 +71,7 @@ async def chat(request: Request):
         if not telemetry:
             return JSONResponse(content={"response": "No telemetry data found for this session.", "session_id": session_id}, status_code=400)
 
-        state = {"query": message, "parsed_telemetry": telemetry}
+        state = {"query": message, "session_id": session_id}
         result = await graph.ainvoke(state) 
         if not result.get("final_response"):
             return JSONResponse(

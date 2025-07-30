@@ -1,24 +1,8 @@
-# def classifier_node(state: dict) -> dict:
-#     query = state["query"].lower()
-#     anomaly_keys = ["anomaly", "issue", "problem", "error", "fail", "glitch"]
-#     # List your telemetry keys here (can use ["BAT", "GPS", "ALT"] etc.)
-#     key_names = ["battery", "bat", "gps", "altitude", "alt", "speed", "arspd", "fuel"]
-
-#     if any(word in query for word in anomaly_keys):
-#         state["query_type"] = "anomaly"
-#         # Try to spot which subsystem is targeted (if any)
-#         target = [k for k in key_names if k in query]
-#         if target:
-#             state["target_keys"] = target
-#         else:
-#             state["target_keys"] = None
-#     else:
-#         state["query_type"] = "factual"
-#     return state
 import json
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from AgenticAI.llms.openai_llms import get_light_llm
+from AgenticAI.utils.semantic_key_rags import key_descriptions
 
 classifier_prompt = PromptTemplate(
     input_variables=["query", "telemetry_keys"],
@@ -29,7 +13,7 @@ You must also extract which telemetry keys (from this list: {telemetry_keys}) ar
 **Instructions:**
 - If the user is asking about anomalies/issues in a specific subsystem (e.g., "in the GPS data"), include only that key in "target_keys".
 - If the user is asking about the whole flight or anomalies in general, set "target_keys" to an empty list.
-- For factual queries, set "target_keys" to the relevant key(s) if mentioned, or an empty list if the query is general.
+- For factual queries, target_keys should be an empty list.
 - Only use keys from the provided list; if no relevant key is present, return an empty list.
 
 **Factual query examples:**
@@ -76,7 +60,7 @@ classifier_chain = LLMChain(
 
 def classifier_node(state: dict) -> dict:
     query = state["query"]
-    telemetry_keys = list(state.get("parsed_telemetry", {}).keys())
+    telemetry_keys = list(key_descriptions.keys())
 
     response = classifier_chain.run({
         "query": query,
@@ -91,5 +75,5 @@ def classifier_node(state: dict) -> dict:
         print("[classifier_node] Error parsing LLM response:", e, response)
         state["query_type"] = "factual"
         state["target_keys"] = None
-
+    print("[classifier_node] Classified query:", state["query"], "as", state["query_type"])
     return state

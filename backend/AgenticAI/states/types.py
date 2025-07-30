@@ -7,6 +7,5 @@ class UAVBotState(TypedDict, total=False):
     query_type: Literal["factual", "anomaly", "unknown"]
     target_keys: Optional[List[str]]
     factual_keys: Optional[List[str]]
-    parsed_telemetry: Optional[Dict[str, List[Dict[str, Any]]]]
     llm_query: Optional[Dict[str, Any]]
     final_response: Optional[str]
