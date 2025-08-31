@@ -15,7 +15,7 @@ It leverages **LangGraph**, **MongoDB**, and **LLMs** to answer factual queries 
 
 - **Smart Query Execution** → The system computes queries effectively by combining semantic key identification with MongoDB retrieval, ensuring accurate and low-latency answers.
 - **Natural Language Interface** – Users ask questions directly about flight performance, anomalies, or metrics.
-**LLM Support**:  
+- **LLM Support**:  
   - OpenAI models (via `openai_llms.py`).  
   - OpenRouter models (via `openrouter_llms.py`).
 - **Scalable Backend**: Modular nodes and agents for flexible graph-based reasoning.
@@ -25,8 +25,10 @@ It leverages **LangGraph**, **MongoDB**, and **LLMs** to answer factual queries 
 
 * FastAPI
 * pymavlink
-* LangChain with `ConversationBufferMemory`
-* Together API with custom `SimpleChatModel`
+* LangChain
+* OpenAI API
+* OpenRouter API
+* MongoDB
 
 ---
 
@@ -119,38 +121,42 @@ npm run build
 ```bash
 UAVLogViewer/
 │
-├── backend/
-│   ├── agenticAI/                 # Core agentic reasoning
-│   │   └── uav_graph.py           # LangGraph pipeline definition
+backend/
+├── AgenticAI/                        # Core agentic reasoning (self-contained)
+│   ├── __init__.py
 │   │
-│   ├── lms/
-│   │   ├── openai_llms.py         # OpenAI integration
-│   │   └── openrouter_llms.py     # OpenRouter integration
+│   ├── graphs/                       # LangGraph pipeline definitions
+│   │   ├── __init__.py
+│   │   └── uav_graph.py              # UAV-Analysis agents workflow
 │   │
-│   ├── nodes/                     # LangGraph nodes
-│   │   ├── classifier_node.py     # Classifies factual vs anomaly queries
-│   │   ├── key_identifier_node.py # Maps user queries to telemetry keys
-│   │   ├── factual_extractor.py   # Factual query handler
-│   │   ├── anomaly_agent_node.py  # Routes anomaly checks
-│   │   ├── anomaly_agents.py      # Specialized anomaly detectors
-│   │   ├── anomaly_generator.py   # Synthesizes anomaly responses
-│   │   ├── lm_query_generator_node.py # Generates refined LM queries
-│   │   └── query_executer_node.py # Executes structured queries
+│   ├── llms/                          # LLM providers and integrations
+│   │   ├── openai_llms.py            # OpenAI integration
+│   │   └── openrouter_llms.py        # OpenRouter integration
 │   │
-│   ├── states/
-│   │   └── types.py               # Shared types and state definitions
+│   ├── nodes/                        # LangGraph nodes
+│   │   ├── classifier_node.py        # Classifies factual vs anomaly queries
+│   │   ├── key_identifier_node.py    # Maps user queries to telemetry keys
+│   │   ├── factual_extractor.py      # Factual query handler
+│   │   ├── anomaly_agent_node.py     # Routes anomaly checks
+│   │   ├── anomaly_agents.py         # Specialized anomaly detectors
+│   │   ├── anomaly_generator.py      # Synthesizes anomaly responses
+│   │   ├── llm_query_generator_node.py # Generates refined LM queries
+│   │   └── query_executer_node.py    # Executes structured queries
 │   │
-│   ├── utils/
-│   │   ├── projections.py         # Data projections for telemetry analysis
-│   │   ├── query_classifier.py    # Semantic query classification
-│   │   ├── semantic_key_rags.py   # Key-level retrieval for telemetry
-│   │   └── telemetry_parser.py    # Parses UAV .bin logs
+│   ├── states/                       # State management and types
+│   │   └── types.py                  # Shared types and state definitions
 │   │
-│   └── __init__.py
-│
+│   └── utils/                        # General utilities
+│       ├── projections.py            # Data projections for telemetry analysis
+│       ├── query_classifier.py       # Semantic query classification
+│       ├── semantic_key_rags.py      # Key-level retrieval for telemetry
+│       └── telemetry_parser.py       # Parses UAV .bin logs
+├── __init__.py
 └── README.md
-
 ---
+
+## LangGraph Architecture and Workflow
+![Agents Workflow](results/workflow.png)
 
 ## 🔄 Sample API Usage
 
@@ -174,6 +180,12 @@ JSON body:
   }
 ```
 
+## Results
+![Factual Query Answer](Screenshots/Factual_Query.png)
+![Anamoly_Detection_Answer_1](Screenshots/Anamoly_Detection_1.png)
+![](Screenshots/Anamoly_Detection_2.png)
+![](Screenshots/Anamoly_Detection_3.png)
+![](Screenshots/Anamoly_Detection_4.png)
 ---
 
 ## 🙏 Acknowledgment
