@@ -159,28 +159,6 @@ backend/
 ## LangGraph Architecture and Workflow
 ![Agents Workflow](Screenshots/workflow.png)
 
-## 🔄 Sample API Usage
-
-### Upload telemetry log
-
-```
-POST /api/upload
-form-data:
-  file: <your .bin file>
-  session_id: optional
-```
-
-### Ask a question
-
-```
-POST /api/chat
-JSON body:
-  {
-    "message": "Any anomalies in flight?",
-    "session_id": "same-as-above"
-  }
-```
-
 ## Results
 ![Factual Query Answer](Screenshots/Factual_Query.png)
 ![Anamoly_Detection_Answer_1](Screenshots/Anamoly_Detection_1.png)
