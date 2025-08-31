@@ -154,9 +154,10 @@ backend/
 ├── __init__.py
 └── README.md
 ---
+```
 
 ## LangGraph Architecture and Workflow
-![Agents Workflow](results/workflow.png)
+![Agents Workflow](Screenshots/workflow.png)
 
 ## 🔄 Sample API Usage
 
